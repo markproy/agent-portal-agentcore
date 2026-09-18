@@ -38,7 +38,7 @@ def test_get_config_lists_platforms_and_tools(client):
     body = resp.json()
     assert set(body["platforms"]) == {"aws"}
     assert set(body["tools"]) == {"web_search", "web_search_aws", "stock_data"}
-    assert set(body["mcp_servers"]) == {"fred"}
+    assert set(body["mcp_servers"]) == set()
     # Per-platform packaging choices come from each deployer module, not from
     # PLATFORMS -- the form needs both the platform's list and the catalog of
     # labels/descriptions to render the Deployment field.
@@ -58,16 +58,23 @@ def test_get_config_reports_unconfigured_tool_and_mcp_server_with_the_variable_t
     deploys fine, reaches READY, then fails every invoke (the hosted agent treats
     a tool that won't load as fatal). The entry stays listed -- it's something you
     could set up -- but says which variable to set."""
+    from deployers import AVAILABLE_MCP_SERVERS
+
     monkeypatch.delenv("AGENTCORE_WEB_SEARCH_GATEWAY_URL")
-    monkeypatch.setenv("FRED_MCP_SERVER_URL", "")
+    monkeypatch.delenv("TEST_MCP_SERVER_URL", raising=False)
+    monkeypatch.setitem(
+        AVAILABLE_MCP_SERVERS,
+        "test-mcp",
+        {"label": "Test MCP", "env_var": "TEST_MCP_SERVER_URL", "url": ""},
+    )
 
     body = client.get("/api/config").json()
 
     gateway_tool = body["tools"]["web_search_aws"]
     assert gateway_tool["available"] is False
     assert "AGENTCORE_WEB_SEARCH_GATEWAY_URL" in gateway_tool["unavailable_reason"]
-    assert body["mcp_servers"]["fred"]["available"] is False
-    assert "FRED_MCP_SERVER_URL" in body["mcp_servers"]["fred"]["unavailable_reason"]
+    assert body["mcp_servers"]["test-mcp"]["available"] is False
+    assert "TEST_MCP_SERVER_URL" in body["mcp_servers"]["test-mcp"]["unavailable_reason"]
     # A tool with no external setup at all is unaffected -- only entries that
     # declare a "requires_env" can be unconfigured.
     assert body["tools"]["web_search"]["available"] is True
@@ -284,7 +291,16 @@ def test_create_agent_deploys_and_becomes_active(client):
     assert agent["platform_resource_id"] == "fake-resource-1"
 
 
-def test_create_agent_passes_mcp_servers_through_to_deploy(client, fake_deployers):
+def test_create_agent_passes_mcp_servers_through_to_deploy(client, fake_deployers, monkeypatch):
+    from deployers import AVAILABLE_MCP_SERVERS
+
+    monkeypatch.setenv("TEST_MCP_SERVER_URL", "https://test-mcp.example.com/mcp")
+    monkeypatch.setitem(
+        AVAILABLE_MCP_SERVERS,
+        "test-mcp",
+        {"label": "Test MCP", "env_var": "TEST_MCP_SERVER_URL", "url": "https://test-mcp.example.com/mcp"},
+    )
+
     resp = client.post(
         "/api/agents",
         json={
@@ -292,15 +308,15 @@ def test_create_agent_passes_mcp_servers_through_to_deploy(client, fake_deployer
             "platform": "aws",
             "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
             "tools": ["stock_data"],
-            "mcp_servers": ["fred"],
+            "mcp_servers": ["test-mcp"],
         },
     )
     agent_id = resp.json()["id"]
 
     agent = client.get(f"/api/agents/{agent_id}").json()
-    assert agent["mcp_servers"] == ["fred"]
+    assert agent["mcp_servers"] == ["test-mcp"]
     resource_id = agent["platform_resource_id"]
-    assert fake_deployers["aws"]._deployed[resource_id]["mcp_servers"] == ["fred"]
+    assert fake_deployers["aws"]._deployed[resource_id]["mcp_servers"] == ["test-mcp"]
 
 
 def test_create_agent_defaults_mcp_servers_to_empty(client):
@@ -382,14 +398,21 @@ def test_create_agent_rejects_tool_whose_setup_isnt_configured(client, monkeypat
 
 
 def test_create_agent_rejects_mcp_server_whose_url_isnt_configured(client, monkeypatch):
-    monkeypatch.setenv("FRED_MCP_SERVER_URL", "")
+    from deployers import AVAILABLE_MCP_SERVERS
+
+    monkeypatch.delenv("TEST_MCP_SERVER_URL", raising=False)
+    monkeypatch.setitem(
+        AVAILABLE_MCP_SERVERS,
+        "test-mcp",
+        {"label": "Test MCP", "env_var": "TEST_MCP_SERVER_URL", "url": ""},
+    )
 
     resp = client.post(
         "/api/agents",
-        json={"name": "x", "platform": "aws", "model": "m", "tools": [], "mcp_servers": ["fred"]},
+        json={"name": "x", "platform": "aws", "model": "m", "tools": [], "mcp_servers": ["test-mcp"]},
     )
     assert resp.status_code == 400
-    assert "FRED_MCP_SERVER_URL" in resp.json()["detail"]
+    assert "TEST_MCP_SERVER_URL" in resp.json()["detail"]
 
 
 def test_create_agent_rejects_unknown_mcp_server(client):

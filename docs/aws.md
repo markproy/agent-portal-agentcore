@@ -361,9 +361,9 @@ unconditionally instead of using whichever boto3 happens to import.
 requests using the runtime's own execution-role credentials -- the same
 no-separate-credential pattern the runtime already uses to call Bedrock
 itself. A plain `MCPClient.load_servers()` connection (as used for the
-config's `mcp_servers`/FRED elsewhere in this file) can't do this signing,
-since the Gateway is IAM-authorized rather than open or OAuth/API-key like
-FRED. Deploying an agent with this tool selected before
+config's `mcp_servers` elsewhere in this file) can't do this signing, since
+the Gateway is IAM-authorized rather than open or OAuth/API-key like a
+typical remote MCP server. Deploying an agent with this tool selected before
 `AGENTCORE_WEB_SEARCH_GATEWAY_URL` is set fails loudly at deploy time
 (`deployers/aws.py`'s `deploy()`) rather than silently shipping an agent
 missing the tool it was configured with.

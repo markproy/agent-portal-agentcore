@@ -217,12 +217,12 @@ import threading
 from dotenv import load_dotenv
 
 # Needed here, not just in submodules --
-# this __init__ module builds AVAILABLE_MCP_SERVERS by reading
-# FRED_MCP_SERVER_URL from os.environ at *import* time, and since this is
-# the package's own __init__, it runs before any submodule's own
-# load_dotenv() call. Without this, .env's value never makes it in: a
-# real bug caught by actually restarting the server, not from the test
-# suite (which sets env vars directly, bypassing dotenv loading entirely).
+# this __init__ module builds AVAILABLE_MCP_SERVERS by reading each entry's
+# URL env var from os.environ at *import* time, and since this is the
+# package's own __init__, it runs before any submodule's own load_dotenv()
+# call. Without this, .env's value never makes it in: a real bug caught by
+# actually restarting the server, not from the test suite (which sets env
+# vars directly, bypassing dotenv loading entirely).
 load_dotenv()
 
 # The shapes .env.example uses for a value only the account owner can supply:
@@ -249,9 +249,9 @@ def is_configured(env_var):
     What this deliberately does *not* do is check that the value works -- no
     network call, no credential check, nothing that could make rendering the
     create-agent form slow or fail. A filled-in but wrong value still gets
-    through: the FRED URL that 404ed was a real Cloud Run hostname with a
-    mistyped hash, and only connecting to it could have caught that. The job
-    here is narrower and covers the far more common case -- not offering a
+    through: a real hostname with a typo in it passes this check fine, and
+    only connecting to it could have caught that. The job here is narrower
+    and covers the far more common case -- not offering a
     platform or tool whose one-time setup was never done at all."""
     value = os.environ.get(env_var, "").strip()
     if not value:
@@ -333,26 +333,24 @@ def tool_allowed_for_platform(tool_id, platform):
 
 # mcp_server_id -> (label, url, description) shown as a checkbox in the
 # create-agent form, alongside AVAILABLE_TOOLS -- an agent can mix any
-# number of local tools with any number of MCP servers in one tool list,
-# verified directly in all three frameworks (see README's "MCP servers"
-# section). Deliberately just a static dict for now, not a DB-backed CRUD
-# registry -- fine for a handful of manually-deployed remote servers;
-# revisit as a real "AI gateway" registry (add/configure/delete/test
-# servers from the UI) once there's more than one or two of these.
+# number of local tools with any number of MCP servers in one tool list.
+# Deliberately just a static dict for now, not a DB-backed CRUD registry --
+# fine for a handful of manually-deployed remote servers; revisit as a real
+# "AI gateway" registry (add/configure/delete/test servers from the UI) once
+# there's more than one or two of these.
 #
 # "env_var" names where the server's URL comes from, and is the source of both
 # "url" below and the availability check server.py applies: a remote MCP server
 # is exactly as usable as its endpoint, and an agent pointed at a placeholder
 # URL fails the same fatal way the AgentCore Gateway one does (see
 # "requires_env" above).
-AVAILABLE_MCP_SERVERS = {
-    "fred": {
-        "label": "FRED (economic data)",
-        "env_var": "FRED_MCP_SERVER_URL",
-        "url": os.environ.get("FRED_MCP_SERVER_URL", ""),
-        "description": "Federal Reserve Economic Data -- search and retrieve economic time series (unemployment, GDP, rates, etc).",
-    },
-}
+#
+# Empty for now -- no remote MCP server ships pre-configured. Add an entry
+# here (label, env_var, url read from that env var, description) to wire one
+# in; the create-agent form, server.py's validation/availability checks, and
+# mcp_urls_for() below all key off this dict generically, so nothing else
+# needs to change.
+AVAILABLE_MCP_SERVERS = {}
 
 # "available" here means *implemented in this portal*, and is a different
 # question from whether this particular checkout is set up to use it -- that
