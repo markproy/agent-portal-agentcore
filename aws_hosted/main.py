@@ -26,14 +26,14 @@ from strands.agent.conversation_manager.null_conversation_manager import NullCon
 from strands.models.bedrock import BedrockModel
 from strands.tools.mcp.mcp_client import MCPClient
 
-from tools import get_price_history, get_stock_price, search_web
+from tools import get_price_history, get_stock_price, make_line_chart_url, search_web
 
 app = BedrockAgentCoreApp()
 log = app.logger
 
 _TOOL_FUNCS = {
     "web_search": [search_web],
-    "stock_data": [get_stock_price, get_price_history],
+    "stock_data": [get_stock_price, get_price_history, make_line_chart_url],
 }
 
 # Mirrors deployers/aws.py's WEB_SEARCH_TOOL_ID -- no shared import, same

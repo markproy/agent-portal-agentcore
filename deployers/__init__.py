@@ -314,7 +314,10 @@ AVAILABLE_TOOLS = {
     },
     "stock_data": {
         "label": "Stock data",
-        "description": "Get the latest stock price and historical performance for a ticker.",
+        "description": (
+            "Get the latest stock price and historical performance for a ticker, and build "
+            "line-chart image URLs comparing series over time."
+        ),
     },
 }
 
