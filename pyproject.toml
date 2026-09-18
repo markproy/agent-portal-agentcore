@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Repo-root modules (server.py, db.py, deployers/, tools.py) aren't a
+# package -- this puts the repo root on sys.path so `import server` etc.
+# resolve the same way whether pytest is run from the repo root or
+# discovered elsewhere (e.g. CI's working directory).
+pythonpath = ["."]
+testpaths = ["tests"]

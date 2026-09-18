@@ -1,0 +1,34 @@
+bedrock-agentcore>=1.9.1
+botocore[crt]>=1.35.0
+strands-agents>=1.15.0
+yfinance
+ddgs
+
+# SigV4 (AWS IAM) auth for the "web_search_aws" tool's MCP connection to an
+# AgentCore Gateway's Web Search Tool connector target -- a plain
+# streamable-http MCP client (as used for the config's plain mcp_servers)
+# can't sign requests, and the Gateway is IAM-authorized (no OAuth/API
+# key), so this AWS-published package is what actually does the signing. See
+# docs/aws.md's "AWS web search via AgentCore Gateway" section.
+mcp-proxy-for-aws
+
+# Wraps the entrypoint with `opentelemetry-instrument` (see deployers/aws.py's
+# entryPoint) to auto-instrument botocore/Bedrock calls -- without this,
+# Strands' own tracer and the Bedrock runtime instrumentation never
+# activate, confirmed directly against an already-deployed comparison
+# agent that has this wrapper: real gen_ai.* spans (agent instructions, tool
+# calls/results, token usage, real trace/span hierarchy) land directly in
+# the same CloudWatch log group deployers/aws.py already reads for app
+# logs -- no X-Ray API, no `agentcore` CLI needed to read them back.
+aws-opentelemetry-distro
+
+# requests/urllib3/curl_cffi advertise these encodings in Accept-Encoding
+# whether or not the codec is installed; without them, a compressed
+# response comes back as raw bytes and fails downstream UTF-8 decoding --
+# same fix needed on the Azure side of this project.
+brotli
+zstandard
+
+# yfinance uses zoneinfo.ZoneInfo("America/New_York") internally; minimal
+# container base images often lack the OS-level IANA timezone database.
+tzdata

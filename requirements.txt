@@ -1,0 +1,25 @@
+python-dotenv
+
+# boto3 -- creates/lists/deletes/queries hosted AWS Bedrock AgentCore
+# Runtime agents. aws_hosted/requirements.txt is a separate list bundled
+# into each deployed agent's zip.
+boto3
+botocore[crt]
+
+# tools.py -- stock price data and web search
+yfinance
+ddgs
+
+brotli
+zstandard
+tzdata
+
+# server.py's web UI
+fastapi
+uvicorn
+
+# perf/loadtest.py's client library
+websockets
+
+# starlette TestClient (used in tests)
+httpx

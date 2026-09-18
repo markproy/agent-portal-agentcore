@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Agent Portal</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div><b>Agent Portal</b> <span>-- create, chat with, and manage hosted agents</span></div>
+  <div class="header-actions">
+    <button class="secondary" id="loadtest-btn">Load Test</button>
+    <button id="new-agent-btn">+ New Agent</button>
+  </div>
+</header>
+
+<main>
+  <div id="agent-list-view">
+    <div id="agent-list"></div>
+  </div>
+
+  <div id="loadtest-view">
+    <div class="chat-header">
+      <button class="secondary" id="loadtest-back-btn">&larr; Back</button>
+      <div><b>Load Test</b></div>
+    </div>
+    <div id="loadtest-body">
+      <div id="loadtest-config-col">
+        <form id="loadtest-config-form">
+          <div class="field">
+            <label class="checkbox-field-label">
+              <input type="checkbox" id="lt-compare-toggle">
+              Compare 2 agents
+            </label>
+          </div>
+          <div class="field">
+            <label for="lt-agent" id="lt-agent-label">Agent</label>
+            <select id="lt-agent" required></select>
+          </div>
+          <div class="field hidden" id="lt-agent-b-field">
+            <label for="lt-agent-b">Agent B</label>
+            <select id="lt-agent-b"></select>
+          </div>
+          <div class="field">
+            <label for="lt-mode">Test mode</label>
+            <select id="lt-mode">
+              <option value="warmup_only">Platform startup only (no LLM call)</option>
+              <option value="chat">Full chat turn (real LLM call)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="lt-shape">Run shape</label>
+            <select id="lt-shape">
+              <option value="burst">Burst &mdash; N sessions at once</option>
+              <option value="loop">Loop &mdash; N sessions, one at a time</option>
+            </select>
+          </div>
+          <div class="field" id="lt-users-field">
+            <label for="lt-users">Concurrent sessions</label>
+            <input type="number" id="lt-users" min="1" max="40" value="5" required>
+          </div>
+          <div class="field" id="lt-iterations-field">
+            <label for="lt-iterations">Iterations per session</label>
+            <input type="number" id="lt-iterations" min="1" max="500" value="3" required>
+          </div>
+          <div class="field hidden" id="lt-sessions-field">
+            <label for="lt-sessions">Sessions</label>
+            <input type="number" id="lt-sessions" min="1" max="500" value="100">
+          </div>
+          <div class="field" id="lt-message-field">
+            <label for="lt-message">Message to send each iteration</label>
+            <input type="text" id="lt-message" placeholder="What is the current stock price of AAPL?" autocomplete="off">
+          </div>
+          <div class="field-hint" id="lt-mode-hint"></div>
+          <div class="field-hint" id="lt-caps-hint"></div>
+          <div class="form-error" id="loadtest-error" style="display:none;"></div>
+          <button type="submit" id="loadtest-start-btn">Start Test</button>
+        </form>
+      </div>
+
+      <div id="loadtest-results-col">
+        <div id="loadtest-overall-header" class="hidden"></div>
+        <div id="loadtest-run-actions" class="hidden">
+          <button type="button" class="secondary" id="loadtest-stop-btn">Stop</button>
+          <button type="button" class="secondary hidden" id="loadtest-download-btn">Download JSON</button>
+        </div>
+        <div id="loadtest-progress" class="hidden"></div>
+        <div id="loadtest-results" class="hidden"></div>
+        <div id="loadtest-results-placeholder" class="trace-status">Configure a test on the left and click Start Test to see live progress and results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="chat-view">
+    <div class="chat-header">
+      <button class="secondary" id="back-btn">&larr; Back</button>
+      <div><b id="chat-agent-name"></b> <span id="chat-agent-platform" style="color:var(--dim); font-size:13px;"></span></div>
+      <button class="link-btn" id="toggle-trace-btn">Show Details</button>
+    </div>
+    <div id="chat-main">
+      <div class="pane">
+        <div id="chat-body"></div>
+        <form id="chat-form">
+          <input id="chat-input" autocomplete="off" placeholder="Ask something..." autofocus>
+          <button type="submit" id="send-btn">Send</button>
+        </form>
+      </div>
+      <div class="pane collapsed" id="trace-pane">
+        <div class="right-split">
+          <div class="pane-title">Turns (click to view trace)</div>
+          <div id="turns-body"></div>
+          <div class="pane-title">
+            <span id="trace-title">Trace</span>
+            <button class="link-btn" id="refresh-trace-btn" style="display:none">Refresh</button>
+          </div>
+          <div class="pane-body" id="trace-body">
+            <div class="trace-status">Send a message to see its trace here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-title">New Agent</h2>
+    <form id="new-agent-form">
+      <div class="field">
+        <label for="f-platform">Platform</label>
+        <select id="f-platform"></select>
+        <div class="field-note" id="f-platform-note"></div>
+      </div>
+      <div class="field">
+        <label for="f-name">Name</label>
+        <input type="text" id="f-name" autocomplete="off" required>
+      </div>
+      <div class="field">
+        <label for="f-model">Model</label>
+        <select id="f-model"></select>
+      </div>
+      <div class="field hidden" id="f-deployment-mode-field">
+        <label for="f-deployment-mode">Deployment</label>
+        <select id="f-deployment-mode"></select>
+        <div class="field-note" id="f-deployment-mode-note"></div>
+      </div>
+      <div class="field hidden" id="f-region-field">
+        <label for="f-region">Region</label>
+        <select id="f-region"></select>
+        <div class="field-note" id="f-region-note"></div>
+      </div>
+      <div class="field hidden" id="f-runtime-version-field">
+        <label for="f-runtime-version">Runtime version</label>
+        <select id="f-runtime-version">
+          <option value="V2" selected>V2 &mdash; snapshot resume</option>
+          <option value="V1">V1 &mdash; warm pool</option>
+        </select>
+        <div class="field-note">AgentCore Runtime platform version. V2 resumes a paused, pre-initialized snapshot instead of cold-starting from a warm pool, so session warmup should be much shorter.</div>
+      </div>
+      <div class="field">
+        <label for="f-description">Description</label>
+        <textarea id="f-description" placeholder="What this agent is for"></textarea>
+      </div>
+      <div class="field">
+        <label for="f-agent-instructions">Agent instructions</label>
+        <textarea id="f-agent-instructions" placeholder="Instructions for the agent"></textarea>
+      </div>
+      <div class="field">
+        <label>Tools</label>
+        <div id="tool-options"></div>
+      </div>
+      <div class="field">
+        <label>MCP servers</label>
+        <div id="mcp-options"></div>
+      </div>
+      <div class="form-error" id="form-error" style="display:none;"></div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="cancel-btn">Cancel</button>
+        <button type="submit" id="create-btn">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/static/marked.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

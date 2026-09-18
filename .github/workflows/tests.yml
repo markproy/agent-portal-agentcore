@@ -1,0 +1,37 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  # Every pull request, whatever it targets -- deliberately unfiltered. A
+  # `branches: [main]` filter here matches on the *base*, so a stacked PR (one
+  # based on another PR's branch, which is how a multi-part change gets reviewed
+  # here) ran no tests at all. Since `pytest` is a required check on main, that
+  # doesn't let anything unverified merge -- it just moves the discovery from
+  # review time to merge time, on the PR that can no longer proceed.
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        # Dummy values only -- deployers/gemini.py and deployers/azure.py
+        # read these at import time, but this whole suite runs against
+        # fake, in-memory deployers (see tests/conftest.py) and never
+        # makes a real cloud call, so no real credentials are needed.
+        env:
+          GOOGLE_CLOUD_PROJECT: ci-test-project
+          GOOGLE_CLOUD_LOCATION: us-central1
+          STAGING_BUCKET: gs://ci-test-bucket
+          FOUNDRY_PROJECT_ENDPOINT: https://ci-test.services.ai.azure.com/api/projects/ci-test
+        run: pytest -v
