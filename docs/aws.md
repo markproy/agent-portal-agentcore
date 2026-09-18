@@ -16,17 +16,12 @@ which doesn't fit a portal deploying many differently-configured agents.
 Instead, every portal-created AWS agent shares one IAM execution role and
 one S3 staging bucket, set up once (the create-role/create-bucket commands
 are in the main README's [How agent deploy
-works](../README.md#how-agent-deploy-works)) -- architecturally parallel to
-Gemini's staging bucket and Azure's shared Foundry project.
-`aws_hosted/main.py` is one static file parameterized per agent, like
-`azure_hosted/main.py` -- but by an `agent_config.json` written into the
-deployment artifact rather than by env vars, which is an
-AgentCore-specific difference worth knowing about (see [Why AWS agent
-config ships in the artifact](#why-aws-agent-config-ships-in-the-artifact)).
+works](../README.md#how-agent-deploy-works)) -- shared across all portal-created agents.
+`aws_hosted/main.py` is one static file parameterized per agent via an
+`agent_config.json` written into the deployment artifact -- see [Why AWS agent config ships in the artifact](#why-aws-agent-config-ships-in-the-artifact).
 See `deployers/aws.py`.
 
-Unlike Gemini (pickles a live object) and Azure (server-side remote
-build), AgentCore's CodeZip build has no dependency-installation step at
+AgentCore's CodeZip build has no dependency-installation step at
 all -- `deploy()` has to `uv pip install --target` the agent's
 dependencies into the zip itself before upload, cross-targeted at the
 container's actual platform since it's built from a developer's machine.
@@ -56,8 +51,7 @@ fixed from live evidence, not guessed:
   polls rather than checking once, since it does need to assert on the
   end state.
 
-Verified via `smoke/aws_smoke_test.py` (mirrors `smoke/smoke_test.py`/
-`smoke/azure_smoke_test.py`) and a second pass through the real server API +
+Verified via `smoke/aws_smoke_test.py` and a second pass through the real server API +
 WebSocket, confirming multi-turn continuity (AgentCore Runtime sessions
 are just a client-generated `runtimeSessionId` string threaded through
 every call -- `aws_hosted/main.py`'s own in-process, session-keyed LRU
@@ -72,9 +66,7 @@ artifact (next to `main.py`, in the zip and in the image alike, by
 `_agent_config`/`_write_agent_config`). `environmentVariables` carries only
 `AWS_REGION`, which boto3 itself reads.
 
-The obvious design is env vars -- one static `main.py`, parameterized per
-deploy -- and that's still what `azure_hosted/main.py` does. Two
-AgentCore-specific failures moved AWS off them:
+The obvious design is env vars, but two AgentCore-specific failures moved away from them:
 
 - **A V2 runtime caps the entire `environmentVariables` payload at 1024
   bytes.** Instructions are a system prompt typed into a textarea and
@@ -405,7 +397,7 @@ Two real, confirmed findings shaped this design:
   still seeing zero spans. This is a real AWS platform limitation as of
   this writing, not a bug in this code -- so AWS's trace panel shows a
   single flat conversation transcript with no per-call duration, unlike
-  Gemini/Azure once those are implemented (they use span-based tracing
+  Other platforms use span-based tracing
   natively).
 - **`gen_ai.choice`'s event for a tool-use decision fires *before* the
   corresponding tool-call/result events for that same round**, not after

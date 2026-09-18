@@ -154,9 +154,9 @@
         <label for="f-runtime-version">Runtime version</label>
         <select id="f-runtime-version">
           <option value="V2" selected>V2 &mdash; snapshot resume</option>
-          <option value="V1">V1 &mdash; warm pool</option>
+          <option value="V1">V1</option>
         </select>
-        <div class="field-note">AgentCore Runtime platform version. V2 resumes a paused, pre-initialized snapshot instead of cold-starting from a warm pool, so session warmup should be much shorter.</div>
+        <div class="field-note">AgentCore Runtime platform version. V2 resumes a pre-initialized snapshot so session warmup is significantly shorter. V1 is the legacy default.</div>
       </div>
       <div class="field">
         <label for="f-description">Description</label>

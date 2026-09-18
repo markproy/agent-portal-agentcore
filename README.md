@@ -10,8 +10,8 @@ You configure an agent through a form (name, model, instructions, tools), click 
 
 **Agent management**
 - Create, edit (Recreate), and delete agents from a browser UI
-- Two deployment modes per agent: **code zip** (default, fastest to deploy) or **container image** (ECR, slower deploy, different startup behavior)
-- V1 (warm pool) and V2 (snapshot resume) runtime versions — V2 typically has significantly shorter session warmup
+- Two deployment modes per agent: **code zip** (default) or **container image** (ECR — different startup behavior, useful for benchmarking)
+- V1 and V2 (snapshot resume) runtime versions — V2 resumes a pre-initialized snapshot instead of cold-starting, so session warmup is significantly shorter
 
 **Observability**
 - Per-turn latency card: session warmup, first-token time, full response, tool-call sequence, token counts — all broken out so you can see exactly where time went
@@ -132,7 +132,7 @@ The portal opens at `http://127.0.0.1:8910`.
 python scripts/seed_demo_agents.py
 ```
 
-This creates `stock-analyst`, `trip-planner`, and `research-assistant` — all V2 code-zip agents with web search pre-configured, ready to chat with right away.
+This creates `stock-analyst`, `trip-planner`, and `research-assistant` — all V2 code-zip agents using the built-in DuckDuckGo web search. No optional setup (container mode, Gateway web search) is needed to run them.
 
 ---
 

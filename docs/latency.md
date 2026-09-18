@@ -22,9 +22,7 @@ the trace transcript below it has finished indexing:
   of standing alone as a single stat under the chat bubble.
 - **Session warmup wait** -- how long this turn spent waiting on the
   session-warmup task fired when "Chat" was opened (see the latency
-  patterns worked into `deployers/aws.py`/`azure.py`/`gemini.py`, written up
-  per platform in [aws.md](aws.md) / [azure.md](azure.md) /
-  [gemini.md](gemini.md)). Large on turn 1 of a cold session, ~0 on every
+  patterns worked into `deployers/aws.py`). Large on turn 1 of a cold session, ~0 on every
   turn after -- directly separates "the container/session was cold"
   from "the LLM call itself was slow," which used to be indistinguishable
   from the outside. On AWS, this number itself splits further into
@@ -75,18 +73,7 @@ the trace transcript below it has finished indexing:
   ~2s, with zero throttles or errors. The delay is now measured on its own as
   `client_queue_ms` (below) rather than being hidden in the platform's half.
 
-  Azure and Gemini don't get this split: nothing in either currently
-  measures the moment the agent's own code got control, and both build
-  their agent/tool/MCP state exactly once at container boot (Azure's
-  `azure_hosted/main.py` `main()`; Gemini's ADK `set_up()`), never
-  per-session the way AWS's `get_or_create_agent(session_id)` does. So
-  `latest_agent_init_ms`/`latest_platform_startup_ms` return `None` on both,
-  same "not measured here, not a real zero" convention as `latest_retries`,
-  and their session-start *totals* are not comparable against AWS's platform
-  number -- see `deployers/__init__.py`. Neither is blocked structurally:
-  both entry points are our own code (Gemini via subclassing the `AdkApp`
-  we already construct and exposing a timed `set_up()` through
-  `register_operations()`); it just needs doing and a redeploy.
+  The split requires the hosted agent to report its own init time on the warmup ping -- see `aws_hosted/main.py`.
 - **Tool calls** -- the turn's ordered tool-call sequence, collapsed to
   `name x N` per repeated name (e.g. `get_stock_price x2`) rather than a
   flat list, so an actually-repeated call is easy to spot at a glance.
@@ -109,7 +96,7 @@ the trace transcript below it has finished indexing:
   see `deployers/aws.py`'s `_stream_events`). Not a precise "this call was
   throttled" signal (botocore also retries some transient network/5xx
   errors), but a real, honest one: any retries mean something made the
-  call slower than a single clean round trip. Azure/Gemini's SDKs don't
+  call slower than a single clean round trip. Other platform SDKs may not
   expose an equivalent count through the clients this portal uses, so
   `latest_retries()` returns `None` for them (not a false `0`) and the row
   is simply omitted -- see `deployers/__init__.py`'s interface docstring.
@@ -191,7 +178,7 @@ Two test modes, each with its own results view:
   per-session platform-startup scatter behind it, the p50/p95 tiles for both
   halves of the split, then the **Full session warmup** ladder and scatter
   -- because that total is still what a user actually waits through. Where a
-  platform doesn't report the split (Azure/Gemini) the full warmup leads
+  platform doesn't report the split, the full warmup leads
   instead, and the chart note says outright that it can't be compared
   against another provider's platform number. There's no TTFA/token/
   tool-call story to show at all once no LLM was ever called, so each metric
@@ -243,20 +230,9 @@ Two test modes, each with its own results view:
   worse of the two agents, since both share the one portal process: if it
   saturated, neither side's numbers are clean.
 
-  **Verified, not assumed, which platforms this mode is actually LLM-free
-  for**, by reading each deployer's real warmup mechanism directly: AWS's
-  container short-circuits on a sentinel *before* ever calling the agent/
-  model, and Gemini's `create_session()` is a plain session/state RPC --
-  both fully LLM-free. Azure's own warmup (`deployers/azure.py`'s
-  `_warm_up`, built in earlier work) fires a real, if trivial,
-  `responses.create(input="Hi", ...)` completion call under the hood --
-  so Azure's `warmup_ms` here includes one small real model call, unlike
-  AWS/Gemini's. Left as-is deliberately rather than reworked to chase a
-  hypothetical cheaper non-model wake-up call, since that warmup path is
-  already-shipped, already-verified behavior from earlier work -- not
-  something worth risking a regression in just for this. The mode-select
-  hint in the UI states this plainly rather than overclaiming "no LLM
-  usage at all" as a blanket, platform-independent guarantee it isn't.
+  **LLM-free on AWS**: the hosted container short-circuits on a sentinel string
+  *before* ever calling the model, so this mode measures pure session-start
+  cost with no inference charge.
 
 ### Run shape: burst vs. loop
 
@@ -296,7 +272,7 @@ iterations to 500, and -- this is the one that actually matters -- their
 (`LOADTEST_MAX_TOTAL_SESSIONS_WARMUP_ONLY`), independent of the two
 per-field caps. The two ceilings differ because what a session *costs*
 differs: a platform-startup-only session makes no LLM call at all on
-AWS/Gemini, while 500 full chat turns is 500 real LLM calls. An unrecognized
+AWS, while 500 full chat turns is 500 real LLM calls. An unrecognized
 mode gets the conservative 60.
 
 `LOADTEST_MAX_USERS` stays at 20 regardless. Concurrency is what protects an
@@ -307,7 +283,7 @@ concurrency is 1.
 That combined cap exists because of a real mistake made building this: an
 earlier version capped each field individually at 50, and a single
 `users=9999/iterations=9999` request was silently accepted and clamped
-down to a genuine 50 x 50 = 2500-session run against a real Gemini agent,
+down to a genuine 50 x 50 = 2500-session run against a real agent,
 which had to be cancelled by hand mid-run. Confirmed live afterward that
 the combined cap actually holds: the same oversized request now clamps to
 20 x 3 = 60 sessions in chat mode.
@@ -363,7 +339,7 @@ chart includes them (colored red), since a real duration exists for that
 metric either way.
 
 Platform-startup-only mode has a failure of its own that isn't a raised
-exception. AWS and Azure both treat the warmup ping as best-effort and swallow
+exception. AWS treats the warmup ping as best-effort and swallows
 its errors on purpose -- right for a chat turn, whose real call surfaces any
 problem itself -- so `wait_for_ready` returns an ordinary-looking duration for
 a session that never started. In this mode the ping *is* the measurement, so
@@ -382,7 +358,7 @@ runs the *same* test config (mode/concurrency/iterations/message -- one
 shared set of parameters, not independently configurable per side) against
 each, **one agent fully at a time, not concurrently**. Nothing about the
 two agents needs to match -- comparing across platforms (e.g. an AWS agent
-against a Gemini one) and comparing two different deployments on the
+and comparing two different deployments on the
 *same* platform (a different runtime version, a larger container, a
 different model) are both just "pick two active agents," with no
 special-casing for either case.
@@ -409,12 +385,7 @@ their real network call even started, and that queueing time was being
 measured as if it were AgentCore's own cold-start latency. Raised to 50
 (`_MAX_POOL_CONNECTIONS`) so the pool itself is never the bottleneck being
 measured -- but sequential comparison removes the *cross-agent* version of
-this class of confound entirely, including for Gemini/Azure, which aren't
-subject to the specific shared-pool bug (Gemini creates a fresh gRPC
-channel per session -- HTTP/2 multiplexed, no small fixed pool; Azure
-creates a fresh async client stack per session -- no shared pool at all --
-both confirmed by reading each client's construction, not assumed to
-match AWS's).
+this class of confound entirely.
 
 `/ws/loadtest`'s protocol is genuinely one shape for both 1 and 2 agents,
 not two parallel ones: it takes a list of 1-2 `agent_ids` (not a singular
@@ -462,7 +433,7 @@ by the initialization time.
 
 `platform_startup_ms` is AWS-only and derived by subtraction, so the switch
 is conditional on *both* agents reporting it (`renderComparisonResults`'
-`platformOnly`). On Azure/Gemini, or in any run where one side has no split,
+`platformOnly`). In any run where one side has no split,
 the view falls back to full warmup throughout. One-sided is treated as
 unavailable rather than partially applied -- a platform-startup bar next to a
 platform-plus-agent bar is a worse chart than an honest total.
@@ -546,9 +517,9 @@ agent B's *first* session started (t=19.2s) -- zero interleaving, sequential
 exactly as intended -- with warmup times climbing smoothly from 9.2s to
 11.9s across agent A's 12 concurrent sessions and no artificial cliff at
 the old 10-connection boundary. A separate real chat-mode comparison
-(Gemini vs. Azure, from before this change) showed a genuine ~14x TTFA p50
+(from before this change) showed a genuine ~14x TTFA p50
 difference (2.0s vs 28.5s -- consistent with this project's own
-earlier-documented Azure orchestration-overhead findings under
+earlier-documented orchestration-overhead findings under
 concurrency, not a fluke). Every validation path (same agent picked twice,
 more than 2 agent_ids, a missing/inactive agent, a malformed request)
 returns a clear error rather than starting a broken test.
