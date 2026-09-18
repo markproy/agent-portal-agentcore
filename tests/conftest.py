@@ -14,7 +14,6 @@ os.environ.setdefault("AWS_REGION", "us-east-1")
 os.environ["AWS_REGION"] = "us-east-1"
 os.environ.setdefault("AGENTCORE_EXECUTION_ROLE_ARN", "arn:aws:iam::000000000000:role/test-role")
 os.environ.setdefault("AGENTCORE_STAGING_BUCKET", "test-bucket")
-os.environ.setdefault("FRED_MCP_SERVER_URL", "https://test-fred-mcp.example.com/mcp")
 # Optional in production (most installs never run the one-time AgentCore Gateway
 # setup), but set here for the same reason as every value above: routes now
 # refuse a tool whose backing endpoint isn't configured (server.py's

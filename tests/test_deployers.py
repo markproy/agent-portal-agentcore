@@ -100,7 +100,6 @@ def test_is_configured_false_when_variable_is_unset(monkeypatch):
 _EXAMPLE_PLACEHOLDERS = (
     "AGENTCORE_EXECUTION_ROLE_ARN",
     "AGENTCORE_STAGING_BUCKET",
-    "FRED_MCP_SERVER_URL",
     "AGENTCORE_WEB_SEARCH_GATEWAY_URL",
 )
 _EXAMPLE_USABLE_DEFAULTS = (
@@ -316,11 +315,17 @@ def test_aws_platform_version_rejects_unknown_version():
         _platform_version_kwargs("v2", supported=True)
 
 
-def test_mcp_urls_for():
+def test_mcp_urls_for(monkeypatch):
     """See deployers/__init__.py."""
     from deployers import AVAILABLE_MCP_SERVERS
 
-    assert mcp_urls_for(["fred"]) == [AVAILABLE_MCP_SERVERS["fred"]["url"]]
+    monkeypatch.setitem(
+        AVAILABLE_MCP_SERVERS,
+        "test-mcp",
+        {"label": "Test MCP", "env_var": "TEST_MCP_SERVER_URL", "url": "https://test-mcp.example.com/mcp"},
+    )
+
+    assert mcp_urls_for(["test-mcp"]) == [AVAILABLE_MCP_SERVERS["test-mcp"]["url"]]
     assert mcp_urls_for([]) == []
     assert mcp_urls_for(["unknown-server-id"]) == []
 

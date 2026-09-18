@@ -29,7 +29,7 @@ You configure an agent through a form (name, model, instructions, tools), click 
 - Web search (DuckDuckGo, no setup needed)
 - Stock prices and price history (yfinance)
 - [AWS managed web search](#optional-aws-managed-web-search) via AgentCore Gateway (one-time setup, better results)
-- Remote MCP servers (FRED economic data included; others configurable)
+- Remote MCP servers (mix in any number alongside local tools; none pre-configured)
 
 ---
 
@@ -181,13 +181,7 @@ Skip this and the tool stays greyed out in the form — the keyless DuckDuckGo *
 
 ## MCP servers
 
-Agents can mix local tools with remote MCP servers in the same tool-calling loop. The **FRED** server (Federal Reserve economic data) is pre-configured; deploy it with:
-
-```bash
-./scripts/deploy_fred_mcp.sh
-```
-
-Requires a free FRED API key from [stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html). The script deploys to Cloud Run, stores the key in Secret Manager, and prints the URL to put in `FRED_MCP_SERVER_URL`.
+Agents can mix local tools with remote MCP servers in the same tool-calling loop. None ship pre-configured — wire one in by adding an entry to `AVAILABLE_MCP_SERVERS` in [`deployers/__init__.py`](deployers/__init__.py) (label, an env var name to read its URL from, description); the create-agent form and the API's validation/availability checks pick it up automatically.
 
 ---
 

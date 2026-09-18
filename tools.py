@@ -23,9 +23,11 @@ which already get proper per-parameter descriptions from Annotated, but
 Gemini needs it, and it's free to keep for all three.
 """
 
+import json
 import time
 from datetime import datetime, timedelta
 from typing import Annotated
+from urllib.parse import quote
 
 import yfinance as yf
 from ddgs import DDGS
@@ -139,3 +141,54 @@ def get_price_history(
     daily_lines = "\n".join(f"  {idx.strftime('%Y-%m-%d')}: ${close:.2f}" for idx, close in recent.items())
     truncated_note = "" if len(hist) <= max_rows else f" (most recent {max_rows} of {len(hist)} trading days)"
     return f"{summary}\nDaily closes{truncated_note}:\n{daily_lines}"
+
+
+# Chart-line colors, cycled by series index -- picked for contrast against both
+# a light and a dark chat background, not tied to any particular ticker.
+_CHART_COLORS = ("#FF4400", "#00C6FF", "#8B5CF6", "#22C55E")
+
+
+def make_line_chart_url(
+    title: Annotated[str, "Chart title, e.g. 'AMZN vs MSFT - Last 30 Days'."],
+    labels: Annotated[
+        list[str], "X-axis labels shared by every series, one per data point, e.g. dates like '2026-08-20'."
+    ],
+    series_labels: Annotated[list[str], "One name per data series, e.g. ['AMZN', 'MSFT']."],
+    series_values: Annotated[
+        list[list[float]],
+        "One list of y-values per series, in the same order as series_labels. Each inner list "
+        "must have exactly as many numbers as there are labels.",
+    ],
+) -> str:
+    """Build a ready-to-embed image URL for a line chart comparing one or more numeric
+    series (e.g. stock closing prices) over a shared set of x-axis labels (e.g. dates).
+
+    Returns a plain https://quickchart.io/... URL. Embed it directly as a markdown image
+    -- e.g. ![description](URL) -- exactly as returned. Always use this tool to build a
+    chart URL; never hand-write a QuickChart URL or a Chart.js config yourself, since a
+    hand-typed config or its encoding is very easy to get subtly wrong in a way that
+    silently breaks the image.
+
+    Args:
+        title: Chart title, e.g. 'AMZN vs MSFT - Last 30 Days'.
+        labels: X-axis labels shared by every series, one per data point.
+        series_labels: One name per data series, e.g. ['AMZN', 'MSFT'].
+        series_values: One list of y-values per series, matching series_labels' order;
+            each inner list must be the same length as labels.
+    """
+    datasets = [
+        {
+            "label": name,
+            "data": values,
+            "borderColor": _CHART_COLORS[i % len(_CHART_COLORS)],
+            "fill": False,
+            "tension": 0.3,
+        }
+        for i, (name, values) in enumerate(zip(series_labels, series_values))
+    ]
+    config = {
+        "type": "line",
+        "data": {"labels": labels, "datasets": datasets},
+        "options": {"plugins": {"title": {"display": True, "text": title}}},
+    }
+    return "https://quickchart.io/chart?c=" + quote(json.dumps(config), safe="")

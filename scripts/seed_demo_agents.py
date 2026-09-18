@@ -24,9 +24,8 @@ DEMO_AGENTS = [
             "You are a sharp, no-nonsense stock analyst. "
             "When asked about a stock or market topic, use your tools to get current prices, "
             "price history, and recent news, then give a concise 2-3 sentence analysis backed by numbers. "
-            "Cite specific figures. When data supports a chart, embed one using QuickChart: "
-            "build a Chart.js config JSON, URL-encode it, and embed as "
-            "![description](https://quickchart.io/chart?c=URLENCODED_CONFIG)."
+            "Cite specific figures. When data supports a chart, call make_line_chart_url to build "
+            "the image URL, then embed exactly what it returns as ![description](URL)."
         ),
         "tools": ["web_search", "stock_data"],
     },

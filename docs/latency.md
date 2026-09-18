@@ -31,9 +31,9 @@ the trace transcript below it has finished indexing:
   `invoke_agent_runtime` call, plus starting the container) and **agent
   initialization** (this agent's own cost: its module imports, and
   `get_or_create_agent()` building the session's `Agent` object and
-  reconnecting its MCP clients -- the FRED and AWS Web Search Gateway
-  connections, the slowest part). That split is what makes the number
-  comparable: platform startup doesn't move when this agent's dependencies
+  reconnecting its MCP clients -- the AWS Web Search Gateway connection and
+  any configured remote MCP servers, the slowest part). That split is what
+  makes the number comparable: platform startup doesn't move when this agent's dependencies
   or tool set change, so it's the one figure that can be held up against
   another provider's, while agent initialization is the part that's really
   this portal's own design (a fresh `Agent` + MCP reconnect per

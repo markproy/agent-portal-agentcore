@@ -17,10 +17,10 @@ def test_create_and_get_agent(isolated_db):
 
 def test_create_agent_with_mcp_servers(isolated_db):
     db = isolated_db
-    agent_id = db.create_agent("my-agent", "gemini", "gemini-2.5-flash", "", "", [], mcp_servers=["fred"])
+    agent_id = db.create_agent("my-agent", "gemini", "gemini-2.5-flash", "", "", [], mcp_servers=["example-mcp"])
 
     agent = db.get_agent(agent_id)
-    assert agent["mcp_servers"] == ["fred"]
+    assert agent["mcp_servers"] == ["example-mcp"]
 
 
 def test_create_agent_records_deployment_mode(isolated_db):
