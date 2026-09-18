@@ -13,10 +13,10 @@ You configure an agent through a form (name, model, instructions, tools), click 
 - Two deployment modes per agent: **code zip** (default, fastest to deploy) or **container image** (ECR, slower deploy, different startup behavior)
 - V1 (warm pool) and V2 (snapshot resume) runtime versions — V2 typically has significantly shorter session warmup
 
-**Chat**
-- Streaming responses rendered as Markdown
-- Per-turn latency breakdown: warmup wait, first-token time, full response time
-- Trace panel: full conversation transcript pulled from CloudWatch Logs
+**Observability**
+- Per-turn latency card: session warmup, first-token time, full response, tool-call sequence, token counts — all broken out so you can see exactly where time went
+- Trace panel: full conversation transcript (prompts, tool calls, results, final answer) pulled live from CloudWatch Logs, queryable ~60–90 seconds after each turn
+- Platform startup split: V2 agents report `platform_startup_ms` (AgentCore's own cost) vs `agent_init_ms` (your agent's import + setup time) so you can compare the platform itself across agent configurations
 
 **Load test**
 - **Platform-startup-only mode**: measures pure session-start cost with no LLM call — directly comparable across agents
